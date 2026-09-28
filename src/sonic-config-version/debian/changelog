@@ -1,0 +1,5 @@
+sonic-config-version (1.0.0-1) unstable; urgency=medium
+
+  * Initial SonicGit hackathon MVP.
+
+ -- SONiC Team <sonic-dev@lists.sonicfoundation.dev>  Mon, 28 Sep 2026 00:00:00 +0000
