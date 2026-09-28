@@ -1,0 +1,49 @@
+catalogVersion: 1
+sonicRelease: "202605"
+buildSettings:
+  reduceFilesystem: BUILD_REDUCE_IMAGE_SIZE
+
+capabilities:
+  l3-forwarding: [database, swss, syncd]
+  bgp: [bgp, bgpd, zebra, staticd, fpmsyncd]
+  ssh-cli: [ssh-cli]
+  platform-monitoring: [pmon]
+  link-aggregation: [teamd]
+  bfd: [bfdd]
+  dhcp-relay: [dhcp-relay]
+  nat: [nat]
+  macsec: [macsec]
+  mux: [mux]
+  sflow: [sflow]
+  snmp: [snmp]
+  gnmi: [gnmi]
+  telemetry: [telemetry]
+  restapi: [restapi]
+  lldp: [lldp]
+
+components:
+  database: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [service-health]}
+  swss: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [service-health]}
+  syncd: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [service-health]}
+  bgp: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [service-health]}
+  bgpd: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [process-health]}
+  zebra: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [process-health]}
+  staticd: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [process-health]}
+  fpmsyncd: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [process-health]}
+  ssh-cli: {protected: true, runtimeAdapter: none, dependencyProbes: [], verify: [management-reachability]}
+  pmon: {protected: true, runtimeAdapter: feature, featureName: pmon, dependencyProbes: [platform-requirement], verify: [feature-state, container-health], activation: [feature-lifecycle]}
+  teamd: {protected: false, runtimeAdapter: feature, featureName: teamd, buildVariable: INCLUDE_TEAMD, dependencyProbes: [portchannel-present], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  dhcp-relay: {protected: false, runtimeAdapter: feature, featureName: dhcp_relay, buildVariable: INCLUDE_DHCP_RELAY, dependencyProbes: [dhcp-relay-config], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  nat: {protected: false, runtimeAdapter: feature, featureName: nat, buildVariable: INCLUDE_NAT, dependencyProbes: [nat-config], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  macsec: {protected: false, runtimeAdapter: feature, featureName: macsec, buildVariable: INCLUDE_MACSEC, dependencyProbes: [macsec-config], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  mux: {protected: false, runtimeAdapter: feature, featureName: mux, dependencyProbes: [mux-config], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  sflow: {protected: false, runtimeAdapter: feature, featureName: sflow, buildVariable: INCLUDE_SFLOW, dependencyProbes: [sflow-config], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  snmp: {protected: false, runtimeAdapter: feature, featureName: snmp, buildVariable: INCLUDE_SNMP, dependencyProbes: [management-path], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  gnmi: {protected: false, runtimeAdapter: feature, featureName: gnmi, buildVariable: INCLUDE_SYSTEM_GNMI, dependencyProbes: [management-path], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  telemetry: {protected: false, runtimeAdapter: feature, featureName: telemetry, buildVariable: INCLUDE_SYSTEM_TELEMETRY, dependencyProbes: [management-path], verify: [feature-state, adapter-status], activation: [feature-lifecycle]}
+  restapi: {protected: false, runtimeAdapter: feature, featureName: restapi, buildVariable: INCLUDE_RESTAPI, dependencyProbes: [management-path], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  lldp: {protected: false, runtimeAdapter: feature, featureName: lldp, buildVariable: INCLUDE_LLDP, dependencyProbes: [lldp-dependency], verify: [feature-state, container-absent], activation: [feature-lifecycle]}
+  bfdd: {protected: false, implementationStatus: implemented, runtimeAdapter: frr-daemon, daemonName: bfdd, dependencyProbes: [bfd-config, bfd-sessions, bfd-consumers], verify: [admin-state, process-state], activation: [bgp-restart], supportedRoutingModes: [classic, management-framework]}
+  ospfd: {protected: false, implementationStatus: implemented, runtimeAdapter: frr-daemon, daemonName: ospfd, dependencyProbes: [ospf-config, ospf-sessions], verify: [admin-state, process-state], activation: [bgp-restart], supportedRoutingModes: [management-framework]}
+  pimd: {protected: false, implementationStatus: implemented, runtimeAdapter: frr-daemon, daemonName: pimd, dependencyProbes: [pim-config, pim-sessions], verify: [admin-state, process-state], activation: [bgp-restart], supportedRoutingModes: [management-framework]}
+  pathd: {protected: false, implementationStatus: implemented, runtimeAdapter: frr-daemon, daemonName: pathd, dependencyProbes: [pathd-config, pathd-consumers], verify: [admin-state, process-state], activation: [bgp-restart], supportedRoutingModes: [management-framework]}

@@ -14,7 +14,7 @@ class BfdMgr(Manager):
     RX_INTERVAL_MS = 200
     TX_INTERVAL_MS = 200
 
-    def __init__(self, common_objs, db, table):
+    def __init__(self, common_objs, db, table, daemon_enabled=True):
         """
         Initialize the object
         :param common_objs: common object dictionary
@@ -28,6 +28,11 @@ class BfdMgr(Manager):
             table,
         )
 
+        self.daemon_enabled = daemon_enabled
+        self.bfd_sessions = {}
+        if not self.daemon_enabled:
+            log_info("bfdd is disabled by FRR_DAEMON; BFD manager will not start it")
+            return
         if(self.check_and_start_bfdd()):
             self.bfd_sessions = self.load_bfd_sessions()
 
@@ -36,6 +41,9 @@ class BfdMgr(Manager):
         Check if bfdd is already running. If it's not, start the process.
         :return: True if bfdd process is running or was successfully started
         """
+        if not self.daemon_enabled:
+            log_warn("refusing to start bfdd because FRR_DAEMON marks it disabled")
+            return False
         try:
             # Use pgrep to check if the process is running
             subprocess.check_output(["pgrep", "-f", "bfdd"])
@@ -308,4 +316,3 @@ class BfdMgr(Manager):
             log_err("no existing bfd session found, key: %s" % key)
 
         return True
-

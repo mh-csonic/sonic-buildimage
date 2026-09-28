@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "https://sonic.net/personaforge/catalog-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalogVersion", "sonicRelease", "buildSettings", "capabilities", "components"],
+  "properties": {
+    "catalogVersion": {"enum": [1]},
+    "sonicRelease": {"enum": ["202605"]},
+    "buildSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reduceFilesystem"],
+      "properties": {"reduceFilesystem": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"}}
+    },
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*$": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/definitions/name"}}
+      },
+      "additionalProperties": false
+    },
+    "components": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*$": {"$ref": "#/definitions/component"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protected", "runtimeAdapter", "dependencyProbes", "verify"],
+      "properties": {
+        "protected": {"type": "boolean"},
+        "implementationStatus": {"enum": ["baseline", "contract-only", "implemented"]},
+        "runtimeAdapter": {"enum": ["none", "feature", "frr-daemon"]},
+        "featureName": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+        "daemonName": {"enum": ["bfdd", "ospfd", "pimd", "pathd"]},
+        "buildVariable": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "dependencyProbes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/definitions/name"}},
+        "verify": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/definitions/name"}},
+        "activation": {"type": "array", "uniqueItems": true, "items": {"enum": ["feature-lifecycle", "frr-live", "bgp-restart", "node-reboot"]}},
+        "supportedRoutingModes": {"type": "array", "uniqueItems": true, "items": {"enum": ["classic", "management-framework"]}}
+      }
+    }
+  }
+}

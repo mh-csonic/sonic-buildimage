@@ -150,6 +150,7 @@ rules/config.user:
 
 include rules/config
 -include rules/config.user
+include rules/personaforge.mk
 include rules/sonic-fips.mk
 
 ifneq ($(DEFAULT_CONTAINER_REGISTRY),)
@@ -613,6 +614,9 @@ SONIC_BUILD_INSTRUCTION :=  $(MAKE) \
                            DOCKER_LOCKFILE_SAVE=$(DOCKER_LOCKFILE_SAVE) \
                            SONIC_CONFIG_USE_NATIVE_DOCKERD_FOR_BUILD=$(SONIC_CONFIG_USE_NATIVE_DOCKERD_FOR_BUILD) \
                            SONIC_CONFIG_USE_DOCKER_CACHE=$(SONIC_CONFIG_USE_DOCKER_CACHE) \
+                           BUILD_REDUCE_IMAGE_SIZE=$(BUILD_REDUCE_IMAGE_SIZE) \
+                           INCLUDE_SYSTEM_TELEMETRY=$(INCLUDE_SYSTEM_TELEMETRY) \
+                           INCLUDE_SYSTEM_GNMI=$(INCLUDE_SYSTEM_GNMI) \
                            SONIC_INCLUDE_SYSTEM_TELEMETRY=$(INCLUDE_SYSTEM_TELEMETRY) \
                            SONIC_INCLUDE_SYSTEM_GNMI=$(INCLUDE_SYSTEM_GNMI) \
                            SONIC_INCLUDE_SYSTEM_BMP=$(INCLUDE_SYSTEM_BMP) \
@@ -621,8 +625,14 @@ SONIC_BUILD_INSTRUCTION :=  $(MAKE) \
                            INCLUDE_DHCP_RELAY=$(INCLUDE_DHCP_RELAY) \
                            INCLUDE_DHCP_SERVER=$(INCLUDE_DHCP_SERVER) \
                            INCLUDE_MACSEC=$(INCLUDE_MACSEC) \
+                           INCLUDE_NAT=$(INCLUDE_NAT) \
+                           INCLUDE_SFLOW=$(INCLUDE_SFLOW) \
+                           INCLUDE_SNMP=$(INCLUDE_SNMP) \
+                           INCLUDE_LLDP=$(INCLUDE_LLDP) \
+                           INCLUDE_TEAMD=$(INCLUDE_TEAMD) \
                            INCLUDE_STP=$(INCLUDE_STP) \
                            INCLUDE_ICCPD=$(INCLUDE_ICCPD) \
+                           INCLUDE_RESTAPI=$(INCLUDE_RESTAPI) \
                            SONIC_INCLUDE_RESTAPI=$(INCLUDE_RESTAPI) \
                            SONIC_INCLUDE_MUX=$(INCLUDE_MUX) \
                            ENABLE_TRANSLIB_WRITE=$(ENABLE_TRANSLIB_WRITE) \
