@@ -38,6 +38,12 @@ from .frr import FRR
 from .vars import g_debug
 
 
+def is_frr_daemon_enabled(config_db, daemon):
+    """Missing rows and the default state preserve existing daemon behavior."""
+    table = config_db.get_table('FRR_DAEMON') or {}
+    return table.get(daemon, {}).get('admin_status', 'default') != 'disabled'
+
+
 def do_work():
     """ Main function """
     st_rt_timer = StaticRouteTimer()
@@ -116,8 +122,11 @@ def do_work():
     config_db.connect()
     sys_defaults = config_db.get_table('SYSTEM_DEFAULTS')
     if 'software_bfd' in sys_defaults and 'status' in sys_defaults['software_bfd'] and sys_defaults['software_bfd']['status'] == 'enabled':
-        log_notice("software_bfd feature is enabled, starting bfd manager")
-        managers.append(BfdMgr(common_objs, "STATE_DB", swsscommon.STATE_BFD_SOFTWARE_SESSION_TABLE_NAME))
+        if is_frr_daemon_enabled(config_db, 'bfdd'):
+            log_notice("software_bfd feature is enabled, starting bfd manager")
+            managers.append(BfdMgr(common_objs, "STATE_DB", swsscommon.STATE_BFD_SOFTWARE_SESSION_TABLE_NAME))
+        else:
+            log_notice("software_bfd is enabled but bfdd is disabled by FRR_DAEMON; skipping bfd manager")
 
     device_metadata = config_db.get_table("DEVICE_METADATA")
     # Enable AsPath Manager for UpperSpineRouter/UpstreamLC
@@ -162,4 +171,3 @@ def main():
         sys.exit(rc)
     except SystemExit:
         os._exit(rc)
-

@@ -264,6 +264,9 @@ sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y in
 # install libffi-dev to match utilities' dependency.
 sudo LANG=C DEBIAN_FRONTEND=noninteractive chroot $FILESYSTEM_ROOT apt-get -y install libffi-dev
 
+# Install PersonaForge before sonic-utilities, which imports it and declares it as a dependency.
+install_pip_package {{sonic_personaforge_wheel_path}}
+
 # Install SONiC Utilities Python package
 install_pip_package {{sonic_utilities_py3_wheel_path}}
 
@@ -1419,4 +1422,3 @@ sudo cp $IMAGE_CONFIGS/set-vrf-strict-mode/set-vrf-strict-mode.service $FILESYST
 # Install set-vrf-strict-mode service
 sudo LANG=C chroot $FILESYSTEM_ROOT systemctl enable set-vrf-strict-mode
 {% endif %}
-

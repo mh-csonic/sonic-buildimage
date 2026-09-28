@@ -44,6 +44,27 @@ class CachedDataWithOp:
 
 bgpd_client = None
 
+OPTIONAL_FRR_DAEMONS = frozenset(('bfdd', 'ospfd', 'pimd', 'pathd'))
+
+
+def get_disabled_frr_daemons(config_db=None):
+    """Return explicitly disabled optional daemons; missing data preserves defaults."""
+    try:
+        if config_db is None:
+            config_db = ConfigDBConnector()
+            config_db.connect()
+        table = config_db.get_table('FRR_DAEMON') or {}
+        return {
+            daemon for daemon in OPTIONAL_FRR_DAEMONS
+            if table.get(daemon, {}).get('admin_status', 'default') == 'disabled'
+        }
+    except Exception as exc:
+        syslog.syslog(
+            syslog.LOG_ERR,
+            'failed to read FRR_DAEMON; preserving default daemon set: {}'.format(exc)
+        )
+        return set()
+
 def g_run_command(table, command, use_bgpd_client, daemons, ignore_fail = False):
     syslog.syslog(syslog.LOG_DEBUG, "execute command {} for table {}.".format(command, table))
     if not (len(command) > 0 and command[0] == 'vtysh'):
@@ -75,7 +96,7 @@ def extract_cmd_daemons(cmd_str):
 class BgpdClientMgr(threading.Thread):
     VTYSH_MARK = 'vtysh '
     PROXY_SERVER_ADDR = '/etc/frr/bgpd_client_sock'
-    ALL_DAEMONS = ['bgpd', 'zebra', 'staticd', 'bfdd', 'ospfd', 'pimd', 'mgmtd']
+    ALL_DAEMONS = ['bgpd', 'zebra', 'staticd', 'bfdd', 'ospfd', 'pimd', 'pathd', 'mgmtd']
     TABLE_DAEMON = {
             'DEVICE_METADATA': ['bgpd'],
             'BGP_GLOBALS': ['bgpd'],
@@ -180,7 +201,7 @@ class BgpdClientMgr(threading.Thread):
         sock.sendall(data)
     def __create_frr_client(self):
         self.client_socks = {}
-        for daemon in self.ALL_DAEMONS:
+        for daemon in self.enabled_daemons:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             serv_addr = '/run/frr/%s.vty' % daemon
             retry_cnt = 0
@@ -216,8 +237,16 @@ class BgpdClientMgr(threading.Thread):
                 syslog.syslog(syslog.LOG_ERR, reply)
                 return False
         return True
-    def __init__(self):
+    def __init__(self, disabled_daemons=None):
         super(BgpdClientMgr, self).__init__(name = 'VTYSH sub-process manager')
+        disabled_daemons = set(disabled_daemons or ())
+        unsupported = disabled_daemons - OPTIONAL_FRR_DAEMONS
+        if unsupported:
+            raise ValueError('cannot disable protected or unknown FRR daemons: {}'.format(
+                ', '.join(sorted(unsupported))))
+        self.enabled_daemons = [
+            daemon for daemon in self.ALL_DAEMONS if daemon not in disabled_daemons
+        ]
         if not self.__create_frr_client():
             syslog.syslog(syslog.LOG_ERR, 'failed to create socket to FRR daemon')
             raise RuntimeError('connect to FRR daemon failed')
@@ -3975,7 +4004,7 @@ def main():
     for sig_num in [signal.SIGTERM, signal.SIGINT]:
         signal.signal(sig_num, sig_handler)
     syslog.syslog(syslog.LOG_DEBUG, 'entering BGP configuration daemon')
-    bgpd_client = BgpdClientMgr()
+    bgpd_client = BgpdClientMgr(get_disabled_frr_daemons())
     bgpd_client.start()
     daemon = BGPConfigDaemon()
     daemon.start()
