@@ -1,0 +1,54 @@
+module sonic-frr-daemon {
+    yang-version 1.1;
+    namespace "http://github.com/sonic-net/sonic-frr-daemon";
+    prefix frr-daemon;
+
+    organization "SONiC";
+    contact "SONiC";
+    description
+        "Administrative desired state for allowlisted optional FRR daemons.";
+
+    revision 2026-09-28 {
+        description "Initial revision.";
+    }
+
+    typedef frr-daemon-name {
+        description "Optional FRR daemons that may be controlled independently.";
+        type enumeration {
+            enum bfdd;
+            enum ospfd;
+            enum pimd;
+            enum pathd;
+        }
+    }
+
+    typedef frr-daemon-admin-status {
+        description "Default preserves the release routing-mode behavior.";
+        type enumeration {
+            enum default;
+            enum enabled;
+            enum disabled;
+        }
+    }
+
+    container sonic-frr-daemon {
+        container FRR_DAEMON {
+            description "Desired administrative state for optional FRR daemons.";
+            list FRR_DAEMON_LIST {
+                key "name";
+
+                leaf name {
+                    type frr-daemon-name;
+                    description "Allowlisted FRR daemon name.";
+                }
+
+                leaf admin_status {
+                    type frr-daemon-admin-status;
+                    default "default";
+                    description
+                        "Desired state. Missing data and default preserve existing behavior.";
+                }
+            }
+        }
+    }
+}

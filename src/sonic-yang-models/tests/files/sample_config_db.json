@@ -3256,6 +3256,11 @@
                 "alert_interval"       : "60000"
             }
         },
+        "FRR_DAEMON": {
+            "bfdd": {
+                "admin_status": "disabled"
+            }
+        },
         "ZTP" : {
             "mode" : {
                 "profile" : "active",

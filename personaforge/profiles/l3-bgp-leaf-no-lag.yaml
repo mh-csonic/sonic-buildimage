@@ -1,0 +1,23 @@
+apiVersion: personaforge.sonic.net/v1alpha1
+kind: Persona
+metadata:
+  name: l3-bgp-leaf-no-lag
+  description: Lab leaf using BGP and host SSH/CLI
+  owner: dell-sonic-ocp-2026
+compatibility:
+  sonicRelease: "202605"
+capabilities:
+  require: [l3-forwarding, bgp, ssh-cli, platform-monitoring]
+  omit: [link-aggregation, dhcp-relay, nat, macsec, mux, sflow, snmp, gnmi, telemetry, restapi]
+overrides:
+  features:
+    lldp: disabled
+  frrDaemons:
+    bfdd: disabled
+policy:
+  failOnConfiguredDependency: true
+  allowDisruptive: true
+  allowNodeReboot: false
+  persistRuntime: true
+build:
+  reduceFilesystem: true

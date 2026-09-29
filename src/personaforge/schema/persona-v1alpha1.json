@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "https://sonic.net/personaforge/persona-v1alpha1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "compatibility", "capabilities", "policy"],
+  "properties": {
+    "apiVersion": {"enum": ["personaforge.sonic.net/v1alpha1"]},
+    "kind": {"enum": ["Persona"]},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "maxLength": 63, "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"},
+        "description": {"type": "string"},
+        "owner": {"type": "string"}
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sonicRelease"],
+      "properties": {
+        "sonicRelease": {"enum": ["202605"]}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["require"],
+      "properties": {
+        "require": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/definitions/name"}},
+        "omit": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/definitions/name"}}
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "features": {"$ref": "#/definitions/stateMap"},
+        "frrDaemons": {"$ref": "#/definitions/stateMap"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failOnConfiguredDependency", "allowDisruptive", "allowNodeReboot", "persistRuntime"],
+      "properties": {
+        "failOnConfiguredDependency": {"type": "boolean"},
+        "allowDisruptive": {"type": "boolean"},
+        "allowNodeReboot": {"type": "boolean"},
+        "persistRuntime": {"type": "boolean"}
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"reduceFilesystem": {"type": "boolean"}}
+    }
+  },
+  "definitions": {
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "stateMap": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]*$": {"enum": ["default", "enabled", "disabled"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

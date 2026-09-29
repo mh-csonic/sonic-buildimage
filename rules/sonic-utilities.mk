@@ -11,7 +11,8 @@ $(SONIC_UTILITIES_PY3)_DEPENDS += $(SONIC_PY_COMMON_PY3) \
                                   $(SONIC_CONFIG_ENGINE_PY3) \
                                   $(SONIC_PLATFORM_COMMON_PY3) \
                                   $(SONIC_YANG_MGMT_PY3) \
-                                  $(SONIC_YANG_MODELS_PY3)
+                                  $(SONIC_YANG_MODELS_PY3) \
+                                  $(SONIC_PERSONAFORGE)
 $(SONIC_UTILITIES_PY3)_DEBS_DEPENDS = $(LIBYANG3) \
                                       $(LIBYANG3_PY3) \
                                       $(LIBSWSSCOMMON) \

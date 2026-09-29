@@ -81,7 +81,8 @@ stderr_syslog=true
 dependent_startup=true
 dependent_startup_wait_for=zsocket:exited
 
-{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" %}
+{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" and
+      (FRR_DAEMON is not defined or FRR_DAEMON.bfdd is not defined or FRR_DAEMON.bfdd.admin_status is not defined or FRR_DAEMON.bfdd.admin_status != "disabled") %}
 [program:bfdd]
 command=/usr/lib/frr/bfdd -A 127.0.0.1 -P 0
 priority=4
@@ -117,7 +118,8 @@ stderr_syslog=true
 dependent_startup=true
 dependent_startup_wait_for=zsocket:exited
 
-{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" %}
+{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" and
+      (FRR_DAEMON is not defined or FRR_DAEMON.ospfd is not defined or FRR_DAEMON.ospfd.admin_status is not defined or FRR_DAEMON.ospfd.admin_status != "disabled") %}
 [program:ospfd]
 command=/usr/lib/frr/ospfd -A 127.0.0.1 -P 0 -M snmp
 priority=5
@@ -131,7 +133,10 @@ stderr_logfile=NONE
 stderr_syslog=true
 dependent_startup=true
 dependent_startup_wait_for=zebra:running
+{% endif %}
 
+{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" and
+      (FRR_DAEMON is not defined or FRR_DAEMON.pimd is not defined or FRR_DAEMON.pimd.admin_status is not defined or FRR_DAEMON.pimd.admin_status != "disabled") %}
 [program:pimd]
 command=/usr/lib/frr/pimd -A 127.0.0.1 -P 0
 priority=5
@@ -210,7 +215,8 @@ dependent_startup_wait_for=bgpd:running
 
 {% endif %}
 
-{% if SYSTEM_DEFAULTS is defined and SYSTEM_DEFAULTS.software_bfd is defined and SYSTEM_DEFAULTS.software_bfd.status is defined and SYSTEM_DEFAULTS.software_bfd.status == "enabled" %}
+{% if SYSTEM_DEFAULTS is defined and SYSTEM_DEFAULTS.software_bfd is defined and SYSTEM_DEFAULTS.software_bfd.status is defined and SYSTEM_DEFAULTS.software_bfd.status == "enabled" and
+      (FRR_DAEMON is not defined or FRR_DAEMON.bfdd is not defined or FRR_DAEMON.bfdd.admin_status is not defined or FRR_DAEMON.bfdd.admin_status != "disabled") %}
 [program:bfdmon]
 command=/usr/local/bin/bfdmon
 priority=6
@@ -252,7 +258,8 @@ dependent_startup=true
 dependent_startup_wait_for=bgpd:running
 {% endif %}
 
-{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" %}
+{% if DEVICE_METADATA.localhost.frr_mgmt_framework_config is defined and DEVICE_METADATA.localhost.frr_mgmt_framework_config == "true" and
+      (FRR_DAEMON is not defined or FRR_DAEMON.pathd is not defined or FRR_DAEMON.pathd.admin_status is not defined or FRR_DAEMON.pathd.admin_status != "disabled") %}
 [program:pathd]
 command=/usr/lib/frr/pathd -A 127.0.0.1 -P 0
 priority=5
