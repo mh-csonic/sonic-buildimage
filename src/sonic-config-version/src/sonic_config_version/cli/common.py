@@ -7,9 +7,9 @@ from sonic_config_version.errors import SonicGitError
 from sonic_config_version.manager import SonicGitManager
 
 
-def require_root():
+def require_root(purpose="SonicGit modifying operations"):
     if os.geteuid() != 0:
-        error = click.ClickException("root privileges are required for SonicGit modifying operations")
+        error = click.ClickException("root privileges are required for {}".format(purpose))
         error.exit_code = 2
         raise error
 

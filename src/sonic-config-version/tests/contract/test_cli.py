@@ -14,3 +14,13 @@ def test_show_command_contract():
     result = CliRunner().invoke(show_group, ["--help"])
     assert result.exit_code == 0
     assert set(show_group.commands) == {"status", "history", "diff", "drift", "audit", "capability"}
+
+
+def test_show_commands_reject_non_root_with_clear_error(monkeypatch):
+    monkeypatch.setattr("sonic_config_version.cli.common.os.geteuid", lambda: 1000)
+
+    result = CliRunner().invoke(show_group, ["status"])
+
+    assert result.exit_code == 2
+    assert "root privileges are required for accessing SonicGit's private state" in result.output
+    assert "initialized" not in result.output

@@ -1,11 +1,12 @@
 import click
 
-from sonic_config_version.cli.common import manager, run
+from sonic_config_version.cli.common import manager, require_root, run
 
 
 @click.group("sonic-git")
 def sonic_git():
     """Show local Git-backed configuration information."""
+    require_root("accessing SonicGit's private state")
 
 
 @sonic_git.command("status")
