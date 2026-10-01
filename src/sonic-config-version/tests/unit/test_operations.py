@@ -35,6 +35,18 @@ def test_apply_verifies_running_saves_startup_and_moves_refs(sonicgit):
     assert status["running_matches_active"] is True
 
 
+def test_apply_accepts_operator_label(sonicgit):
+    manager, adapter = sonicgit
+    baseline = manager.initialize(label="baseline")
+    _add_vlan(adapter)
+    manager.commit("vlan", label="vlan-100")
+
+    result = manager.apply("baseline")
+
+    assert result["target_commit"] == baseline["commit"]
+    assert "VLAN" not in adapter.running
+
+
 def test_default_rollback_selects_active_parent(sonicgit):
     manager, adapter = sonicgit
     baseline = manager.initialize()

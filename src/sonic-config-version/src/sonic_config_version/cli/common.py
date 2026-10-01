@@ -25,9 +25,13 @@ def emit(value):
         click.echo(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def run(action):
+def run(action, renderer=None, json_output=False):
     try:
-        emit(action())
+        value = action()
+        if renderer is not None and not json_output:
+            click.echo(renderer(value))
+        else:
+            emit(value)
     except SonicGitError as exc:
         error = click.ClickException("{}: {}".format(exc.code, exc))
         error.exit_code = int(exc.code[2:])

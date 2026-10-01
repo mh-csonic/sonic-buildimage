@@ -11,7 +11,11 @@ from sonic_config_version.locking import FileLock
 from sonic_config_version.repository.manager import Repository, current_operator
 from sonic_config_version.snapshot.exporter import StableExporter
 from sonic_config_version.snapshot.normalizer import digest, normalize_and_hash
-from sonic_config_version.snapshot.semantic_diff import semantic_diff
+from sonic_config_version.snapshot.semantic_diff import (
+    semantic_diff,
+    semantic_diff_records,
+    summarize_config_changes,
+)
 from sonic_config_version.storage import Storage
 
 
@@ -45,13 +49,16 @@ class SonicGitManager:
                 )
 
     def _record_failure(self, action, operation_id, exc):
-        self.audit.append(
+        self._append_audit(
             action,
             "failure",
             operation_id=operation_id,
             error_type=type(exc).__name__,
             error=str(exc),
         )
+
+    def _append_audit(self, action, result, **details):
+        self.audit.append(action, result, operator=current_operator(), **details)
 
     def _update_startup_if_matching(self, sha, snapshot_hash):
         try:
@@ -63,7 +70,7 @@ class SonicGitManager:
             return True
         return False
 
-    def initialize(self):
+    def initialize(self, label=None):
         operation_id = uuid.uuid4().hex
         self.storage.ensure_layout()
         try:
@@ -82,22 +89,31 @@ class SonicGitManager:
                     "SonicGit baseline",
                     current_operator(),
                     info,
+                    label=label,
                 )
                 startup_matches = self._update_startup_if_matching(sha, snapshot_hash)
-                self.audit.append(
+                self._append_audit(
                     "init",
                     "success",
                     operation_id=operation_id,
                     commit=sha,
                     configuration_sha256=snapshot_hash,
                     startup_matches=startup_matches,
+                    label=label,
                 )
-                return {"commit": sha, "configuration_sha256": snapshot_hash, "startup_matches": startup_matches}
+                result = {
+                    "commit": sha,
+                    "configuration_sha256": snapshot_hash,
+                    "startup_matches": startup_matches,
+                }
+                if label is not None:
+                    result["label"] = label
+                return result
         except Exception as exc:
             self._record_failure("init", operation_id, exc)
             raise
 
-    def commit(self, message, allow_empty=False):
+    def commit(self, message, allow_empty=False, label=None):
         operation_id = uuid.uuid4().hex
         self.storage.ensure_layout()
         try:
@@ -113,9 +129,10 @@ class SonicGitManager:
                     current_operator(),
                     info,
                     allow_empty=allow_empty,
+                    label=label,
                 )
                 startup_matches = self._update_startup_if_matching(sha, snapshot_hash)
-                self.audit.append(
+                self._append_audit(
                     "commit",
                     "success",
                     operation_id=operation_id,
@@ -123,10 +140,56 @@ class SonicGitManager:
                     configuration_sha256=snapshot_hash,
                     startup_matches=startup_matches,
                     message=message,
+                    label=label,
                 )
-                return {"commit": sha, "configuration_sha256": snapshot_hash, "startup_matches": startup_matches}
+                result = {
+                    "commit": sha,
+                    "configuration_sha256": snapshot_hash,
+                    "startup_matches": startup_matches,
+                }
+                if label is not None:
+                    result["label"] = label
+                return result
         except Exception as exc:
             self._record_failure("commit", operation_id, exc)
+            raise
+
+    def create_label(self, label, revision=ACTIVE_REF):
+        operation_id = uuid.uuid4().hex
+        self.storage.ensure_layout()
+        try:
+            with FileLock(self.storage.operation_lock_path, "label-create"):
+                self.repository.preflight()
+                sha = self.repository.create_label(label, revision)
+                self._append_audit(
+                    "label-create",
+                    "success",
+                    operation_id=operation_id,
+                    label=label,
+                    commit=sha,
+                )
+                return {"label": label, "commit": sha}
+        except Exception as exc:
+            self._record_failure("label-create", operation_id, exc)
+            raise
+
+    def delete_label(self, label):
+        operation_id = uuid.uuid4().hex
+        self.storage.ensure_layout()
+        try:
+            with FileLock(self.storage.operation_lock_path, "label-delete"):
+                self.repository.preflight()
+                sha = self.repository.delete_label(label)
+                self._append_audit(
+                    "label-delete",
+                    "success",
+                    operation_id=operation_id,
+                    label=label,
+                    commit=sha,
+                )
+                return {"label": label, "commit": sha, "deleted": True}
+        except Exception as exc:
+            self._record_failure("label-delete", operation_id, exc)
             raise
 
     def _restore_after_failure(self, checkpoint_name, original_hash):
@@ -210,7 +273,7 @@ class SonicGitManager:
                                     "target_commit": target_sha,
                                     "configuration_sha256": candidate_hash,
                                 }
-                                self.audit.append(action, "success", operation_id=operation_id, **result)
+                                self._append_audit(action, "success", operation_id=operation_id, **result)
                                 try:
                                     self.adapter.delete_checkpoint(checkpoint_name)
                                     result["checkpoint_deleted"] = True
@@ -219,7 +282,7 @@ class SonicGitManager:
                                     checkpoint_metadata["checkpoint_cleanup_error"] = str(cleanup_error)
                                     try:
                                         self.storage.write_checkpoint_metadata(operation_id, checkpoint_metadata)
-                                        self.audit.append(
+                                        self._append_audit(
                                             "checkpoint-cleanup",
                                             "failure",
                                             operation_id=operation_id,
@@ -249,7 +312,7 @@ class SonicGitManager:
                                 "target_commit": target_sha,
                                 "configuration_sha256": candidate_hash,
                             }
-                            self.audit.append(action, "success", operation_id=operation_id, **result)
+                            self._append_audit(action, "success", operation_id=operation_id, **result)
                             try:
                                 self.adapter.delete_checkpoint(checkpoint_name)
                                 result["checkpoint_deleted"] = True
@@ -258,7 +321,7 @@ class SonicGitManager:
                                 checkpoint_metadata["checkpoint_cleanup_error"] = str(cleanup_error)
                                 try:
                                     self.storage.write_checkpoint_metadata(operation_id, checkpoint_metadata)
-                                    self.audit.append(
+                                    self._append_audit(
                                         "checkpoint-cleanup",
                                         "failure",
                                         operation_id=operation_id,
@@ -308,14 +371,21 @@ class SonicGitManager:
 
     def status(self):
         if not self.repository.git.exists():
-            return {"initialized": False, "repository": self.storage.repository}
+            return {
+                "initialized": False,
+                "repository": self.storage.repository,
+                "repository_status": "NOT_INITIALIZED",
+            }
         active = self.repository.resolve_optional_ref(ACTIVE_REF)
         startup = self.repository.resolve_optional_ref(STARTUP_REF)
         result = {
             "initialized": True,
             "repository": self.storage.repository,
+            "repository_status": self.repository.worktree_status(),
             "active_commit": active,
             "startup_commit": startup,
+            "active_labels": self.repository.labels_for_revision(active) if active else [],
+            "startup_labels": self.repository.labels_for_revision(startup) if startup else [],
             "remote_count": self.repository.remote_count(),
         }
         try:
@@ -346,20 +416,84 @@ class SonicGitManager:
         right_value = json.loads(self.repository.load_snapshot(self.repository.resolve_revision(right))[0])
         return semantic_diff(left_value, right_value)
 
+    def _revision_description(self, revision):
+        sha = self.repository.resolve_revision(revision)
+        labels = self.repository.labels_for_revision(sha)
+        selected_label = revision if revision in labels else (labels[0] if labels else None)
+        return {
+            "input": revision,
+            "commit": sha,
+            "short_commit": sha[:8],
+            "label": selected_label,
+            "labels": labels,
+        }
+
+    def diff_report(self, left, right):
+        left_description = self._revision_description(left)
+        right_description = self._revision_description(right)
+        left_value = json.loads(self.repository.load_snapshot(left_description["commit"])[0])
+        right_value = json.loads(self.repository.load_snapshot(right_description["commit"])[0])
+        return {
+            "from": left_description,
+            "to": right_description,
+            "changes": semantic_diff(left_value, right_value),
+            "rows": semantic_diff_records(left_value, right_value),
+        }
+
     def drift(self, verbose=False):
         active = self.repository.resolve_optional_ref(ACTIVE_REF)
         if not active:
             raise RepositoryError("active reference is not set")
-        active_value = json.loads(self.repository.load_snapshot(active)[0])
+        active_snapshot, _ = self.repository.load_snapshot(active)
+        active_value = json.loads(active_snapshot)
         running, running_hash = self.exporter.export()
-        changes = semantic_diff(active_value, json.loads(running))
-        result = {"drifted": bool(changes), "change_count": len(changes), "running_sha256": running_hash}
+        running_value = json.loads(running)
+        changes = semantic_diff(active_value, running_value)
+        result = {
+            "active_commit": active,
+            "active_labels": self.repository.labels_for_revision(active),
+            "expected_sha256": digest(active_snapshot),
+            "drifted": bool(changes),
+            "change_count": len(changes),
+            "running_sha256": running_hash,
+            "summary": summarize_config_changes(active_value, running_value),
+        }
         if verbose:
             result["changes"] = changes
+            result["rows"] = semantic_diff_records(active_value, running_value)
         return result
 
     def audit_events(self, limit=20):
         return self.audit.read(limit)
+
+    def labels(self):
+        active = self.repository.resolve_optional_ref(ACTIVE_REF)
+        startup = self.repository.resolve_optional_ref(STARTUP_REF)
+        result = []
+        for entry in self.repository.list_labels():
+            _, metadata = self.repository.load_snapshot(entry["commit"])
+            item = dict(entry)
+            item.update(
+                {
+                    "active": entry["commit"] == active,
+                    "startup": entry["commit"] == startup,
+                    "message": metadata["message"],
+                }
+            )
+            result.append(item)
+        return result
+
+    def inspect_revision(self, revision):
+        description = self._revision_description(revision)
+        _, metadata = self.repository.load_snapshot(description["commit"])
+        description.update(
+            {
+                "metadata": metadata,
+                "active": description["commit"] == self.repository.resolve_optional_ref(ACTIVE_REF),
+                "startup": description["commit"] == self.repository.resolve_optional_ref(STARTUP_REF),
+            }
+        )
+        return description
 
     def capability(self):
         info = {}

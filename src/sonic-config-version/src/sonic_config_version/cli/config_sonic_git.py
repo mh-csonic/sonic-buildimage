@@ -9,19 +9,21 @@ def sonic_git():
 
 
 @sonic_git.command("init")
-def initialize():
+@click.option("--label", help="Optional lowercase label for the baseline commit.")
+def initialize(label):
     """Create the repository and capture the running configuration baseline."""
     require_root()
-    run(lambda: manager().initialize())
+    run(lambda: manager().initialize(label=label))
 
 
 @sonic_git.command("commit")
 @click.option("--message", "message", required=True, help="Description of the running configuration change.")
 @click.option("--allow-empty", is_flag=True, help="Allow a semantic no-op snapshot commit.")
-def commit(message, allow_empty):
+@click.option("--label", help="Optional lowercase label for the new commit.")
+def commit(message, allow_empty, label):
     """Commit the current running CONFIG_DB."""
     require_root()
-    run(lambda: manager().commit(message, allow_empty=allow_empty))
+    run(lambda: manager().commit(message, allow_empty=allow_empty, label=label))
 
 
 @sonic_git.command("apply")
@@ -40,3 +42,25 @@ def rollback(revision, dry_run):
     """Restore a revision, or the active commit's first parent."""
     require_root()
     run(lambda: manager().rollback(revision, dry_run=dry_run))
+
+
+@sonic_git.group("label")
+def label_group():
+    """Create or delete operator-friendly configuration labels."""
+
+
+@label_group.command("create")
+@click.argument("name")
+@click.argument("revision", required=False, default="refs/sonic/active")
+def create_label(name, revision):
+    """Attach NAME to REVISION, or to the active commit when omitted."""
+    require_root()
+    run(lambda: manager().create_label(name, revision))
+
+
+@label_group.command("delete")
+@click.argument("name")
+def delete_label(name):
+    """Delete NAME without deleting its configuration commit."""
+    require_root()
+    run(lambda: manager().delete_label(name))

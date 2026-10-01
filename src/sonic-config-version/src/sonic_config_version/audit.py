@@ -31,13 +31,15 @@ class AuditLog:
     def __init__(self, path):
         self.path = path
 
-    def append(self, action, result, **details):
+    def append(self, action, result, operator=None, **details):
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": action,
             "result": result,
             "details": redact(details),
         }
+        if operator is not None:
+            event["operator"] = redact(operator)
         payload = (json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
         os.makedirs(os.path.dirname(self.path), mode=0o700, exist_ok=True)
         flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND

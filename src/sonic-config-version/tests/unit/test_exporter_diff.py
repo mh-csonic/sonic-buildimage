@@ -2,7 +2,11 @@ import pytest
 
 from sonic_config_version.errors import ValidationError
 from sonic_config_version.snapshot.exporter import StableExporter
-from sonic_config_version.snapshot.semantic_diff import semantic_diff
+from sonic_config_version.snapshot.semantic_diff import (
+    semantic_diff,
+    semantic_diff_records,
+    summarize_config_changes,
+)
 
 
 class SequencedAdapter:
@@ -45,3 +49,32 @@ def test_semantic_diff_reports_added_empty_entries():
             "new": {},
         }
     ]
+
+
+def test_semantic_diff_records_preserve_composite_key_with_prefix_slash():
+    right = {"INTERFACE": {"Ethernet64|192.0.2.0/31": {}}}
+    records = semantic_diff_records({}, right)
+    assert records == [
+        {
+            "operation": "added",
+            "table": "INTERFACE",
+            "key": "Ethernet64|192.0.2.0/31",
+            "field": None,
+            "old": None,
+            "new": {},
+        }
+    ]
+
+
+def test_change_summary_counts_entries_not_changed_fields():
+    left = {"PORT": {"Ethernet64": {"admin_status": "down", "mtu": "9100"}}}
+    right = {
+        "PORT": {"Ethernet64": {"admin_status": "up", "mtu": "1500"}},
+        "VLAN": {"Vlan100": {"vlanid": "100"}},
+    }
+    assert summarize_config_changes(left, right) == {
+        "tables_changed": 2,
+        "entries_added": 1,
+        "entries_updated": 1,
+        "entries_deleted": 0,
+    }

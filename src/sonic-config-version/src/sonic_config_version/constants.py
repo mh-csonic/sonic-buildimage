@@ -7,6 +7,7 @@ CHECKPOINT_METADATA_DIRNAME = "checkpoints"
 
 ACTIVE_REF = "refs/sonic/active"
 STARTUP_REF = "refs/sonic/startup"
+LABEL_REF_PREFIX = "refs/tags/"
 CONFIG_PATH = "config/config_db.json"
 METADATA_PATH = "metadata/version.json"
 NORMALIZATION_VERSION = 1

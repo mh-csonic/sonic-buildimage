@@ -12,21 +12,36 @@ configuration.
 ## Commands
 
 ```text
-sudo config sonic-git init
-sudo config sonic-git commit --message <message> [--allow-empty]
+sudo config sonic-git init [--label <name>]
+sudo config sonic-git commit --message <message> [--allow-empty] [--label <name>]
 sudo config sonic-git apply <revision> [--dry-run]
 sudo config sonic-git rollback [<revision>] [--dry-run]
+sudo config sonic-git label create <name> [<revision>]
+sudo config sonic-git label delete <name>
 
-show sonic-git status
-show sonic-git history [--limit <count>]
-show sonic-git diff <from> <to> [--format semantic|git]
-show sonic-git drift [--verbose]
-show sonic-git audit [--limit <count>]
-show sonic-git capability
+sudo show sonic-git status [--json]
+sudo show sonic-git history [--limit <count>] [--json]
+sudo show sonic-git diff <from> <to> [--format semantic|git] [--json]
+sudo show sonic-git drift [--verbose] [--json]
+sudo show sonic-git audit [--limit <count>] [--json]
+sudo show sonic-git capability [--json]
+sudo show sonic-git labels [--json]
+sudo show sonic-git inspect <revision> [--json]
 ```
+
+`<revision>` may be a full SHA, abbreviated SHA, Git reference, or SonicGit
+label. Labels are optional lowercase names such as `baseline`, `known-good`, or
+`pre-bgp-change`. A label is an immutable pointer to one commit: duplicate
+names are rejected, and a commit may have at most one label. To rename a
+version, delete its existing label and then create the replacement label;
+deleting a label never deletes its commit. The default `show` output is
+operator-oriented text or tables; use `--json` for automation. Raw Git diff
+remains available through `show sonic-git diff ... --format git`.
 
 The default state root is `/var/lib/sonic/config-version`. The repository is
 local-only. Adding any Git remote blocks init, commit, apply, and rollback.
+The state root is private to root, so both configuration and display commands
+must be run through `sudo`.
 
 ## Safety model
 

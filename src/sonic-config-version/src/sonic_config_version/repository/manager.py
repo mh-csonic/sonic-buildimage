@@ -1,15 +1,17 @@
 import json
 import os
 import pwd
+import re
 
 from sonic_config_version.constants import (
     ACTIVE_REF,
     CONFIG_PATH,
+    LABEL_REF_PREFIX,
     METADATA_PATH,
     MIN_FREE_BYTES,
     MIN_FREE_INODES,
 )
-from sonic_config_version.errors import NoChangeError, RepositoryError, ValidationError
+from sonic_config_version.errors import CommandError, NoChangeError, RepositoryError, ValidationError
 from sonic_config_version.repository.git_runner import GitRunner, validate_revision
 from sonic_config_version.snapshot.metadata import create_metadata, validate_metadata
 from sonic_config_version.snapshot.normalizer import digest, normalize
@@ -17,6 +19,25 @@ from sonic_config_version.storage import Storage, has_strict_permissions
 
 
 ZERO_SHA = "0" * 40
+LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+SHA_LIKE_LABEL_PATTERN = re.compile(r"^[0-9a-f]{7,40}$")
+RESERVED_LABELS = {"active", "head", "startup"}
+
+
+def validate_label_name(label):
+    if not isinstance(label, str) or not LABEL_PATTERN.fullmatch(label):
+        raise ValidationError(
+            "label must contain only lowercase letters, digits, '.', '_', or '-' and be at most 64 characters"
+        )
+    if label in RESERVED_LABELS:
+        raise ValidationError("label {!r} is reserved".format(label))
+    if SHA_LIKE_LABEL_PATTERN.fullmatch(label):
+        raise ValidationError("label must not look like an abbreviated commit SHA")
+    return label
+
+
+def label_ref(label):
+    return LABEL_REF_PREFIX + validate_label_name(label)
 
 
 class Repository:
@@ -80,6 +101,12 @@ class Repository:
         output, _ = self.git.run("remote")
         return len([line for line in output.splitlines() if line.strip()])
 
+    def worktree_status(self):
+        if not self.git.exists():
+            return "NOT_INITIALIZED"
+        output, _ = self.git.run("status", "--porcelain")
+        return "DIRTY" if output.strip() else "CLEAN"
+
     def resolve_optional_ref(self, reference):
         if not self.git.exists():
             return None
@@ -89,7 +116,17 @@ class Repository:
 
     def resolve_revision(self, revision):
         validate_revision(revision)
-        output, _ = self.git.run("rev-parse", "--verify", "{}^{{commit}}".format(revision))
+        reference = revision
+        try:
+            candidate_ref = label_ref(revision)
+        except ValidationError:
+            candidate_ref = None
+        if candidate_ref and self.resolve_optional_ref(candidate_ref):
+            reference = candidate_ref
+        try:
+            output, _ = self.git.run("rev-parse", "--verify", "{}^{{commit}}".format(reference))
+        except CommandError:
+            raise RepositoryError("revision {!r} was not found".format(revision))
         sha = output.strip()
         if len(sha) != 40 or any(character not in "0123456789abcdef" for character in sha.lower()):
             raise RepositoryError("revision did not resolve to a full commit SHA")
@@ -108,9 +145,68 @@ class Repository:
             self.git.run("update-ref", "-d", reference, current)
         self._tighten_modes()
 
-    def commit_snapshot(self, normalized, snapshot_hash, message, operator, system_info, allow_empty=False):
+    def list_labels(self):
+        if not self.git.exists():
+            return []
+        output, _ = self.git.run(
+            "for-each-ref",
+            "--format=%(refname:strip=2)",
+            LABEL_REF_PREFIX,
+        )
+        result = []
+        for name in output.splitlines():
+            name = name.strip()
+            if not name:
+                continue
+            try:
+                validate_label_name(name)
+                sha = self.resolve_revision(name)
+            except (RepositoryError, ValidationError):
+                continue
+            result.append({"label": name, "commit": sha})
+        return result
+
+    def labels_for_revision(self, revision):
+        sha = self.resolve_revision(revision)
+        return [entry["label"] for entry in self.list_labels() if entry["commit"] == sha]
+
+    def create_label(self, label, revision):
+        reference = label_ref(label)
+        sha = self.resolve_revision(revision)
+        existing = self.resolve_optional_ref(reference)
+        if existing:
+            raise RepositoryError(
+                "label {!r} already exists at {}; requested target was {}".format(label, existing, sha)
+            )
+        assigned_labels = self.labels_for_revision(sha)
+        if assigned_labels:
+            raise RepositoryError(
+                "commit {} already has label {}; delete it before assigning {!r}".format(
+                    sha,
+                    ", ".join(repr(item) for item in assigned_labels),
+                    label,
+                )
+            )
+        self.git.run("update-ref", reference, sha, ZERO_SHA)
+        self._tighten_modes()
+        return sha
+
+    def delete_label(self, label):
+        reference = label_ref(label)
+        sha = self.resolve_optional_ref(reference)
+        if not sha:
+            raise RepositoryError("label {!r} does not exist".format(label))
+        self.git.run("update-ref", "-d", reference, sha)
+        self._tighten_modes()
+        return sha
+
+    def commit_snapshot(self, normalized, snapshot_hash, message, operator, system_info, allow_empty=False, label=None):
         current = self.resolve_optional_ref(ACTIVE_REF)
         old_head = self.resolve_optional_ref("HEAD")
+        new_label_ref = label_ref(label) if label is not None else None
+        existing_label_sha = self.resolve_optional_ref(new_label_ref) if new_label_ref else None
+        if existing_label_sha:
+            raise RepositoryError("label {!r} already exists at {}".format(label, existing_label_sha))
         if current:
             current_snapshot, _ = self.load_snapshot(current)
             if digest(current_snapshot) == snapshot_hash and not allow_empty:
@@ -130,6 +226,17 @@ class Repository:
         sha = commit_output.strip()
         if len(sha) != 40:
             raise RepositoryError("Git did not return a full commit SHA")
+        if new_label_ref:
+            assigned_labels = self.labels_for_revision(sha)
+            if assigned_labels:
+                self._restore_worktree(old_head)
+                raise RepositoryError(
+                    "commit {} already has label {}; cannot assign {!r}".format(
+                        sha,
+                        ", ".join(repr(item) for item in assigned_labels),
+                        label,
+                    )
+                )
         archive_ref = "refs/sonic/commits/{}".format(sha)
         archive_old = self.resolve_optional_ref(archive_ref)
         commands = ["start"]
@@ -144,6 +251,8 @@ class Repository:
             if current
             else "create {} {}".format(ACTIVE_REF, sha)
         )
+        if new_label_ref:
+            commands.append("create {} {}".format(new_label_ref, sha))
         commands.append("commit")
         try:
             self.git.run("update-ref", "--stdin", input_text="\n".join(commands) + "\n")
@@ -210,7 +319,11 @@ class Repository:
         for line in output.splitlines():
             fields = line.split("\x1f", 3)
             if len(fields) == 4:
-                result.append(dict(zip(("commit", "time", "author", "message"), fields)))
+                entry = dict(zip(("commit", "time", "author", "message"), fields))
+                _, metadata = self.load_snapshot(entry["commit"])
+                entry["operator"] = metadata["operator"]
+                entry["labels"] = self.labels_for_revision(entry["commit"])
+                result.append(entry)
         return result
 
     def raw_diff(self, left, right):

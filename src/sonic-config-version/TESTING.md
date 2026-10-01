@@ -56,7 +56,7 @@ Boot the newly built image on a single-ASIC switch, then run:
 show version
 dpkg -l sonic-config-version git
 command -v git
-show sonic-git capability
+sudo show sonic-git capability
 sudo ip netns list
 ```
 
@@ -76,9 +76,10 @@ command or reports more than one ASIC.
 ## 4. Baseline and commit workflow
 
 ```bash
-sudo config sonic-git init
-show sonic-git status
-show sonic-git history
+sudo config sonic-git init --label baseline
+sudo show sonic-git status
+sudo show sonic-git history
+sudo show sonic-git labels
 sudo /usr/bin/git -C /var/lib/sonic/config-version/repository remote
 ```
 
@@ -90,10 +91,11 @@ topology. For example:
 
 ```bash
 sudo config vlan add 100
-sudo config sonic-git commit --message "add VLAN 100"
-show sonic-git history
-show sonic-git diff A refs/sonic/active --format semantic
-show sonic-git drift --verbose
+sudo config sonic-git commit --message "add VLAN 100" --label vlan-100
+sudo show sonic-git history
+sudo show sonic-git diff baseline vlan-100 --format semantic
+sudo show sonic-git inspect vlan-100
+sudo show sonic-git drift --verbose
 ```
 
 Save the VLAN commit SHA as `B`. The diff should show the VLAN additions and
@@ -108,8 +110,8 @@ snapshot whose hash matches `/etc/sonic/config_db.json`.
 With commit `B` active:
 
 ```bash
-sudo config sonic-git apply A --dry-run
-show sonic-git status
+sudo config sonic-git apply baseline --dry-run
+sudo show sonic-git status
 show vlan brief
 ```
 
@@ -118,8 +120,8 @@ The dry-run must leave the running hash, active ref, and VLAN unchanged.
 Apply the baseline explicitly:
 
 ```bash
-sudo config sonic-git apply A
-show sonic-git status
+sudo config sonic-git apply baseline
+sudo show sonic-git status
 show vlan brief
 ```
 
@@ -128,10 +130,10 @@ Running and startup hashes must match `A`, and VLAN 100 should be absent.
 Apply the VLAN version and then use default rollback:
 
 ```bash
-sudo config sonic-git apply B
+sudo config sonic-git apply vlan-100
 show vlan brief
 sudo config sonic-git rollback
-show sonic-git status
+sudo show sonic-git status
 show vlan brief
 ```
 
@@ -139,7 +141,7 @@ Default rollback selects the first parent of the active commit. An explicit
 rollback can select any valid local commit:
 
 ```bash
-sudo config sonic-git rollback A
+sudo config sonic-git rollback baseline
 ```
 
 ## 6. Drift and `config save`
@@ -148,7 +150,7 @@ Make a lab-safe running change without committing it:
 
 ```bash
 sudo config vlan add 200
-show sonic-git drift --verbose
+sudo show sonic-git drift --verbose
 ```
 
 Drift should report the semantic change. SonicGit never reconciles it
@@ -162,15 +164,15 @@ sudo config sonic-git commit --message "add VLAN 200"
 history before and after:
 
 ```bash
-show sonic-git history
+sudo show sonic-git history
 sudo config save -y
-show sonic-git history
+sudo show sonic-git history
 ```
 
 ## 7. Audit, persistence, and failure testing
 
 ```bash
-show sonic-git audit --limit 50
+sudo show sonic-git audit --limit 50
 sudo find /var/lib/sonic/config-version -maxdepth 3 -type f -ls
 ```
 
@@ -182,7 +184,7 @@ After a successful rollback, reboot the lab switch and verify:
 ```bash
 sudo reboot
 # After the switch returns:
-show sonic-git status
+sudo show sonic-git status
 show vlan brief
 ```
 
