@@ -1588,6 +1588,7 @@ $(addprefix $(TARGET_PATH)/, $(SONIC_INSTALLERS)) : $(TARGET_PATH)/% : \
                 $(SONIC_DB_CLI) \
                 $(SONIC_NETTOOLS) \
                 $(SONIC_RSYSLOG_PLUGIN) \
+                $(SONIC_CONFIG_VERSION) \
                 $(SONIC_UTILITIES_DATA) \
                 $(SONIC_CTRMGRD_RS) \
                 $(SONIC_HOST_SERVICES_RS) \

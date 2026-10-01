@@ -1,0 +1,6 @@
+src/sonic_config_version/*.py usr/lib/python3/dist-packages/sonic_config_version
+src/sonic_config_version/adapters/*.py usr/lib/python3/dist-packages/sonic_config_version/adapters
+src/sonic_config_version/cli/*.py usr/lib/python3/dist-packages/sonic_config_version/cli
+src/sonic_config_version/operations/*.py usr/lib/python3/dist-packages/sonic_config_version/operations
+src/sonic_config_version/repository/*.py usr/lib/python3/dist-packages/sonic_config_version/repository
+src/sonic_config_version/snapshot/*.py usr/lib/python3/dist-packages/sonic_config_version/snapshot

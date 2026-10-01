@@ -1,0 +1,1 @@
+"""SONiC native configuration adapters."""

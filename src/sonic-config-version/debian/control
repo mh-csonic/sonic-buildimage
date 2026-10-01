@@ -1,0 +1,13 @@
+Source: sonic-config-version
+Maintainer: SONiC Team <sonic-dev@lists.sonicfoundation.dev>
+Section: net
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+
+Package: sonic-config-version
+Architecture: all
+Depends: ${misc:Depends}, python3, python3-click, git
+Description: Local Git-backed SONiC configuration versioning
+ Captures normalized running CONFIG_DB snapshots in a persistent local Git
+ repository and applies or rolls them back through native SONiC commands.
